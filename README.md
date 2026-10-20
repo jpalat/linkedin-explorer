@@ -120,3 +120,7 @@ data/*.zip.zip          the exports as LinkedIn sent them
 data/Basic/, Complete/  the same exports unzipped
 data/data.json          pre-built output, if you made one
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
