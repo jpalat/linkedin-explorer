@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkedIn Activity Explorer</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell">
+  <nav class="nav" aria-label="Sections">
+    <div class="brand">
+      <span class="brand-name">Activity Explorer</span>
+      <span class="brand-sub" id="who"></span>
+    </div>
+    <a href="#overview" data-view="overview">Overview</a>
+    <a href="#writing" data-view="writing">Posts &amp; comments</a>
+    <a href="#searches" data-view="searches">Searches</a>
+    <a href="#following" data-view="following">Following</a>
+    <a href="#messages" data-view="messages">Messages</a>
+    <a href="#ads" data-view="ads">Ads &amp; privacy</a>
+    <div class="nav-foot"><span id="built"></span><a href="?zip" id="open-other" hidden>Open another export</a></div>
+  </nav>
+
+  <main class="main">
+    <p class="loading" id="loading">Loading…</p>
+
+    <!-- Shown when there is no data.json, or with ?zip -->
+    <section class="picker" id="picker" hidden>
+      <header class="view-head">
+        <h1>Open your LinkedIn export</h1>
+        <p class="lede">Choose the zip LinkedIn sent you, Basic or Complete. If you have both, choose them together and the newer files win. The export is read in this browser by a WebAssembly module and never leaves your computer.</p>
+      </header>
+      <label class="drop" id="drop">
+        <input type="file" id="zip-in" accept=".zip,application/zip" multiple>
+        <span class="drop-main">Drop the zip here, or <u>choose a file</u></span>
+        <span class="note" id="pick-status">Settings &rarr; Data privacy &rarr; Get a copy of your data</span>
+      </label>
+    </section>
+
+    <!-- Overview -->
+    <section class="view" id="view-overview" hidden>
+      <header class="view-head">
+        <h1>Overview</h1>
+        <p class="lede" id="ov-lede"></p>
+      </header>
+      <div class="tiles" id="ov-tiles"></div>
+      <div class="card">
+        <div class="card-head">
+          <div><h2>Your activity per month</h2><p class="note">Reactions, comments, reposts and posts you made.</p></div>
+          <div class="seg" id="ov-range" role="group" aria-label="Range">
+            <button type="button" data-range="all">All time</button>
+            <button type="button" data-range="2y" class="on">Last 2 years</button>
+          </div>
+        </div>
+        <div class="legend" id="ov-legend"></div>
+        <div class="chart" id="ov-monthly"></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h2>When you're on LinkedIn</h2>
+          <p class="note">Reactions, comments, posts, reposts and searches by weekday and hour, Eastern time.</p>
+          <div id="ov-heat"></div>
+        </div>
+        <div class="card">
+          <h2>How you react</h2>
+          <p class="note">All reactions by type.</p>
+          <div id="ov-react"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Posts & comments -->
+    <section class="view" id="view-writing" hidden>
+      <header class="view-head">
+        <h1>Posts &amp; comments</h1>
+        <p class="lede" id="wr-lede"></p>
+      </header>
+      <div class="toolbar">
+        <input type="search" id="wr-q" placeholder="Search your writing" aria-label="Search your writing">
+        <div class="seg" id="wr-kind" role="group" aria-label="Kind">
+          <button type="button" data-kind="all" class="on">All</button>
+          <button type="button" data-kind="post">Posts</button>
+          <button type="button" data-kind="comment">Comments</button>
+        </div>
+        <span class="count" id="wr-count"></span>
+      </div>
+      <div class="card"><h2>Per year</h2><div class="legend" id="wr-legend"></div><div class="chart short" id="wr-chart"></div></div>
+      <ol class="feed" id="wr-list"></ol>
+    </section>
+
+    <!-- Searches -->
+    <section class="view" id="view-searches" hidden>
+      <header class="view-head">
+        <h1>Searches</h1>
+        <p class="lede" id="se-lede"></p>
+      </header>
+      <div class="card">
+        <h2>Searches per week</h2>
+        <p class="note" id="se-chart-note">Click a query below to see when you ran it.</p>
+        <div class="chart short" id="se-chart"></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Top queries</h2>
+          <p class="note">Case-insensitive. Click one to filter the log.</p>
+          <div id="se-top"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Search log</h2>
+            <span class="count" id="se-count"></span>
+          </div>
+          <input type="search" id="se-q" placeholder="Filter queries" aria-label="Filter queries">
+          <div class="scroll"><table class="tbl" id="se-log"><thead><tr><th>When (ET)</th><th>Query</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Following -->
+    <section class="view" id="view-following" hidden>
+      <header class="view-head">
+        <h1>Following</h1>
+        <p class="lede" id="fo-lede"></p>
+      </header>
+      <div class="card">
+        <h2>Follows per year</h2>
+        <div class="legend" id="fo-legend"></div>
+        <div class="chart short" id="fo-chart"></div>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="fo-q" placeholder="Search people, companies, hashtags" aria-label="Search follows">
+      </div>
+      <div class="grid3">
+        <div class="card"><div class="card-head"><h2>People</h2><span class="count" id="fo-n-m"></span></div><div class="scroll"><ul class="plain" id="fo-members"></ul></div></div>
+        <div class="card"><div class="card-head"><h2>Companies</h2><span class="count" id="fo-n-c"></span></div><div class="scroll"><ul class="plain" id="fo-companies"></ul></div></div>
+        <div class="card"><div class="card-head"><h2>Hashtags</h2><span class="count" id="fo-n-h"></span></div><div class="scroll"><ul class="plain" id="fo-hashtags"></ul></div></div>
+      </div>
+    </section>
+
+    <!-- Messages -->
+    <section class="view" id="view-messages" hidden>
+      <header class="view-head">
+        <h1>Messages</h1>
+        <p class="lede" id="ms-lede"></p>
+      </header>
+      <div class="toolbar">
+        <input type="search" id="ms-q" placeholder="Search names, subjects and message text" aria-label="Search messages">
+        <span class="count" id="ms-count"></span>
+      </div>
+      <div class="inbox">
+        <ul class="convs" id="ms-list"></ul>
+        <article class="thread" id="ms-thread"><p class="note">Pick a conversation.</p></article>
+      </div>
+    </section>
+
+    <!-- Ads & privacy -->
+    <section class="view" id="view-ads" hidden>
+      <header class="view-head">
+        <h1>Ads &amp; privacy</h1>
+        <p class="lede">What LinkedIn infers about you, how advertisers can target you, and where your account has been used.</p>
+      </header>
+      <div class="card">
+        <h2>Inferences about you</h2>
+        <div class="infer" id="ad-infer"></div>
+      </div>
+      <div class="card">
+        <h2>Ad targeting profile</h2>
+        <p class="note">The segments advertisers can reach you through. Open a category to see every value.</p>
+        <div id="ad-target"></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Ad clicks per month</h2>
+          <p class="note" id="ad-click-note"></p>
+          <div class="chart short" id="ad-clicks"></div>
+        </div>
+        <div class="card">
+          <h2>Ads shown off LinkedIn</h2>
+          <p class="note" id="ad-off-note"></p>
+          <div id="ad-off"></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><h2>Sign-ins</h2><span class="count" id="ad-n-login"></span></div>
+          <div class="scroll"><table class="tbl" id="ad-logins"><thead><tr><th>When (ET)</th><th>Device</th><th>IP address</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Security challenges</h2><span class="count" id="ad-n-chal"></span></div>
+          <div class="scroll"><table class="tbl" id="ad-chal"><thead><tr><th>When (ET)</th><th>Check</th><th>Device</th><th>IP address</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

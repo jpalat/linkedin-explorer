@@ -1,0 +1,8 @@
+# Personal LinkedIn data: never commit
+data/
+data.json
+*.zip
+
+# Build output (GitHub Actions builds the .wasm for Pages)
+wasm/target/
+app/linkedin_export.wasm

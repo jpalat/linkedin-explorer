@@ -1,0 +1,58 @@
+# Builds the WebAssembly module from source and publishes the page to GitHub Pages.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wasm
+
+      - name: Test
+        working-directory: wasm
+        run: cargo test --locked
+
+      - name: Build WebAssembly
+        working-directory: wasm
+        run: cargo build --locked --release --target wasm32-unknown-unknown
+
+      - name: Assemble site
+        run: |
+          mkdir _site
+          cp app/index.html app/app.js app/styles.css _site/
+          cp wasm/target/wasm32-unknown-unknown/release/linkedin_export.wasm _site/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
