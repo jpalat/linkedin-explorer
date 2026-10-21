@@ -11,10 +11,16 @@ Not affiliated with or endorsed by LinkedIn.
 ## Using it
 
 1. Request your data from LinkedIn: **Settings → Data privacy → Get a copy of your data**. LinkedIn sends a *Basic* export within minutes and a *Complete* one about a day later.
-2. Open the page and drop the zip onto it, or click to choose it. You can choose both zips together; files from the newer export replace the older one's.
+2. Open the page and drop the zip onto it, or click to choose it. You can choose both zips together. They're read oldest first by file date, so where both contain the same file, the newer export's copy wins.
 3. To load a different export later, click **Open another export** at the bottom of the left menu.
 
-Times are shown in US Eastern time.
+Times are shown in US Eastern time. To use another zone, change `TZ` at the top of `app/app.js` (any IANA name, such as `Europe/London`) and rebuild or redeploy.
+
+### If something goes wrong
+
+- **"Could not read that export (…)"**: the message in brackets comes from the parser. "not a zip file" means the file is damaged or isn't a zip at all, often because the download didn't finish. Download it again from LinkedIn's email.
+- **Nothing happens when you drop a file**: only files ending in `.zip` are accepted.
+- **A view says it has no data**: that part of your history isn't in the export you loaded. Most views need the *Complete* export (see below).
 
 ### What each export gives you
 
@@ -49,7 +55,8 @@ The module exports a few C-style functions, so the page needs no generated glue 
 | Export | Purpose |
 |---|---|
 | `alloc(len) → ptr` | Reserve memory for a zip |
-| `add_zip(ptr, len) → n` | Read the zip at `ptr`; returns the number of CSV files, or −1 on error |
+| `add_zip(ptr, len) → n` | Read the zip at `ptr` and take ownership of that memory; returns the number of CSV files, or −1 on error |
+| `dealloc(ptr, len)` | Free memory from `alloc` that wasn't passed to `add_zip` |
 | `build(now_seconds) → ptr` | Build the JSON; read `out_len()` bytes at the returned pointer |
 | `out_ptr()`, `out_len()` | The last result, or the error message after a −1 |
 | `reset()` | Forget all added zips |
@@ -88,6 +95,14 @@ The site is just four static files: `index.html`, `app.js`, `styles.css` and `li
 ```sh
 cd app && python3 -m http.server 8791 --bind 127.0.0.1    # http://127.0.0.1:8791/?zip
 ```
+
+The `?zip` makes the page ask for a zip even if a pre-built `data.json` is present (see below).
+
+### Supporting another file from the export
+
+1. In `Export::build` in `wasm/src/lib.rs`, read the file by its name without `.csv` (for example `rows("Logins")`, or `pairs(...)` for simple date-and-value lists) and add the result to the JSON.
+2. Draw it in `app/app.js`, which receives that JSON as-is.
+3. Add a test next to the existing ones at the bottom of `lib.rs`, then run `cargo test` and `wasm/build.sh`.
 
 ### Pre-building data.json
 
