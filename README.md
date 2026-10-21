@@ -10,7 +10,7 @@ Not affiliated with or endorsed by LinkedIn.
 
 ## Using it
 
-1. Request your data from LinkedIn: **Settings & Privacy → Data privacy → Download your data**. LinkedIn sends a *Basic* export within minutes and a *Complete* one about a day later.
+1. Request your data from LinkedIn: **Settings & Privacy → Data privacy → Download your data** ([LinkedIn's instructions](https://www.linkedin.com/help/linkedin/answer/a1339364)). LinkedIn sends a *Basic* export within minutes and a *Complete* one about a day later.
 2. Open the page and drop the zip onto it, or click to choose it. You can choose both zips together. They're read oldest first by file date, so where both contain the same file, the newer export's copy wins.
 3. To load a different export later, click **Open another export** at the bottom of the left menu.
 
