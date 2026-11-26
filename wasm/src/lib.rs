@@ -46,7 +46,7 @@ impl Export {
             })
         })?;
         let s = String::from_utf8_lossy(hit);
-        Some(s.strip_prefix('\u{feff}').unwrap_or(&s).to_string())
+        Some(skip_notes(s.strip_prefix('\u{feff}').unwrap_or(&s)).to_string())
     }
 
     fn rows(&self, stem: &str) -> Vec<Row> {
@@ -180,6 +180,27 @@ impl Export {
             .collect();
         data.insert("challenges".into(), Value::Array(challenges));
 
+        // Network: connections and invitations. Email addresses are left out on purpose.
+        let connections = self
+            .rows("Connections")
+            .iter()
+            .map(|r| {
+                let name = format!("{} {}", r.get("First Name").trim(), r.get("Last Name").trim()).trim().to_string();
+                json!([iso(r.get("Connected On")), name, r.get("Company").trim(), r.get("Position").trim(), r.get("URL").trim()])
+            })
+            .collect();
+        data.insert("connections".into(), Value::Array(connections));
+        let invitations = self
+            .rows("Invitations")
+            .iter()
+            .map(|r| {
+                let out = r.get("Direction").eq_ignore_ascii_case("OUTGOING");
+                let (who, url) = if out { (r.get("To"), r.get("inviteeProfileUrl")) } else { (r.get("From"), r.get("inviterProfileUrl")) };
+                json!([us_datetime(r.get("Sent At")), if out { "out" } else { "in" }, who.trim(), r.get("Message").trim(), url.trim()])
+            })
+            .collect();
+        data.insert("invitations".into(), Value::Array(invitations));
+
         data.insert("conversations".into(), self.conversations(&me));
         data.insert("built".into(), json!(iso_from_epoch(now)));
         serde_json::to_string(&Value::Object(data)).unwrap_or_default()
@@ -286,6 +307,21 @@ impl Row {
     }
 }
 
+/// Connections.csv opens with a "Notes:" paragraph and a blank line before its header row.
+fn skip_notes(s: &str) -> &str {
+    if !s.starts_with("Notes:") {
+        return s;
+    }
+    let mut at = 0;
+    for line in s.split_inclusive('\n') {
+        at += line.len();
+        if line.trim().is_empty() {
+            return &s[at..];
+        }
+    }
+    s
+}
+
 fn is_record_start(b: &[u8]) -> bool {
     const PAT: &[u8] = b"dddd-dd-dd dd:dd:dd,";
     b.len() >= PAT.len() && PAT.iter().zip(b).all(|(p, c)| if *p == b'd' { c.is_ascii_digit() } else { p == c })
@@ -349,6 +385,24 @@ fn strptime(s: &str, fmt: &str) -> Option<[i64; 6]> {
     let [y, mo, d, h, mi, se] = out;
     let ok = i == s.len() && (1..=12).contains(&mo) && d >= 1 && d <= days_in_month(y, mo) && h < 24 && mi < 60 && se < 62;
     ok.then_some(out)
+}
+
+/// Invitations.csv uses US short dates: "9/23/26, 11:44 AM".
+pub fn us_datetime(s: &str) -> Option<String> {
+    let (date, time) = s.trim().split_once(", ")?;
+    let mut d = date.split('/').map(|x| x.parse::<i64>().ok());
+    let (mo, day, y) = (d.next()??, d.next()??, d.next()??);
+    let (hm, ampm) = time.trim().split_once(' ')?;
+    let (h, mi) = hm.split_once(':')?;
+    let (h, mi): (i64, i64) = (h.parse().ok()?, mi.parse().ok()?);
+    let y = if y < 100 { 2000 + y } else { y };
+    let h = match ampm.to_ascii_uppercase().as_str() {
+        "AM" if (1..=12).contains(&h) => h % 12,
+        "PM" if (1..=12).contains(&h) => h % 12 + 12,
+        _ => return None,
+    };
+    let ok = d.next().is_none() && (1..=12).contains(&mo) && day >= 1 && day <= days_in_month(y, mo) && mi < 60;
+    ok.then(|| format!("{y:04}-{mo:02}-{day:02}T{h:02}:{mi:02}:00Z"))
 }
 
 fn days_in_month(y: i64, m: i64) -> i64 {
@@ -571,6 +625,21 @@ mod tests {
         assert_eq!(iso("2026-02-30 00:00:00"), None);
         assert_eq!(iso(""), None);
         assert_eq!(iso_from_epoch(epoch("2024-02-29T23:59:58Z")), "2024-02-29T23:59:58Z");
+        assert_eq!(us_datetime("9/23/26, 11:44 AM").as_deref(), Some("2026-09-23T11:44:00Z"));
+        assert_eq!(us_datetime("12/1/25, 12:05 AM").as_deref(), Some("2025-12-01T00:05:00Z"));
+        assert_eq!(us_datetime("5/26/26, 12:00 PM").as_deref(), Some("2026-05-26T12:00:00Z"));
+        assert_eq!(us_datetime("2/30/26, 1:00 PM"), None);
+    }
+
+    #[test]
+    fn connections() {
+        let mut e = Export::default();
+        e.add_file("Connections.csv", b"Notes:\n\"Some, notes\"\n\nFirst Name,Last Name,URL,Email Address,Company,Position,Connected On\nAda,Lovelace,https://www.linkedin.com/in/ada,ada@x.org,\"Engines, Ltd\",Analyst,05 Mar 2019\n".to_vec());
+        e.add_file("Invitations.csv", b"From,To,Sent At,Message,Direction,inviterProfileUrl,inviteeProfileUrl\nAda Lovelace,Me,\"9/23/26, 11:44 AM\",Hi,INCOMING,https://www.linkedin.com/in/ada,https://www.linkedin.com/in/me\n".to_vec());
+        let v: Value = serde_json::from_str(&e.build(0)).unwrap();
+        assert_eq!(v["connections"], json!([["2019-03-05T00:00:00Z", "Ada Lovelace", "Engines, Ltd", "Analyst", "https://www.linkedin.com/in/ada"]]));
+        assert!(!v.to_string().contains("ada@x.org"));
+        assert_eq!(v["invitations"], json!([["2026-09-23T11:44:00Z", "in", "Ada Lovelace", "Hi", "https://www.linkedin.com/in/ada"]]));
     }
 
     #[test]

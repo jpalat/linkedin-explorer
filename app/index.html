@@ -17,6 +17,7 @@
     <a href="#writing" data-view="writing">Posts &amp; comments</a>
     <a href="#searches" data-view="searches">Searches</a>
     <a href="#following" data-view="following">Following</a>
+    <a href="#connections" data-view="connections">Connections</a>
     <a href="#messages" data-view="messages">Messages</a>
     <a href="#ads" data-view="ads">Ads &amp; privacy</a>
     <div class="nav-foot"><span id="built"></span><a href="?zip" id="open-other" hidden>Open another export</a></div>
@@ -135,6 +136,48 @@
         <div class="card"><div class="card-head"><h2>People</h2><span class="count" id="fo-n-m"></span></div><div class="scroll"><ul class="plain" id="fo-members"></ul></div></div>
         <div class="card"><div class="card-head"><h2>Companies</h2><span class="count" id="fo-n-c"></span></div><div class="scroll"><ul class="plain" id="fo-companies"></ul></div></div>
         <div class="card"><div class="card-head"><h2>Hashtags</h2><span class="count" id="fo-n-h"></span></div><div class="scroll"><ul class="plain" id="fo-hashtags"></ul></div></div>
+      </div>
+    </section>
+
+    <!-- Connections -->
+    <section class="view" id="view-connections" hidden>
+      <header class="view-head">
+        <h1>Connections</h1>
+        <p class="lede" id="cn-lede"></p>
+      </header>
+      <div class="card">
+        <h2>New connections per year</h2>
+        <p class="note" id="cn-chart-note"></p>
+        <div class="legend" id="cn-legend"></div>
+        <div class="chart short" id="cn-chart"></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Where they work</h2>
+          <p class="note">Current company, as each connection lists it. Click one to filter.</p>
+          <div id="cn-companies"></div>
+        </div>
+        <div class="card">
+          <h2>What they do</h2>
+          <p class="note">Most common words in job titles. Click one to filter.</p>
+          <div id="cn-titles"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>Everyone</h2>
+          <span class="count" id="cn-count"></span>
+        </div>
+        <input type="search" id="cn-q" placeholder="Filter by name, company or title" aria-label="Filter connections">
+        <div class="scroll"><table class="tbl" id="cn-list"><thead><tr><th>Connected</th><th>Name</th><th>Company</th><th>Title</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card" id="cn-inv-card">
+        <div class="card-head">
+          <h2>Invitations</h2>
+          <span class="count" id="cn-n-inv"></span>
+        </div>
+        <p class="note" id="cn-inv-note"></p>
+        <div class="scroll"><table class="tbl" id="cn-inv"><thead><tr><th>Sent (ET)</th><th>Direction</th><th>Who</th><th>Message</th></tr></thead><tbody></tbody></table></div>
       </div>
     </section>
 

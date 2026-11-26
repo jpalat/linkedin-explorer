@@ -30,6 +30,7 @@ Times are shown in US Eastern time. To use another zone, change `TZ` at the top 
 | Posts & comments | Searchable list of everything you wrote, per-year chart | | ✓ |
 | Searches | Searches per week, top queries, full search log | | ✓ |
 | Following | People, companies and hashtags you follow | companies only | ✓ |
+| Connections | Connections per year, where they work, common job titles, a searchable list, invitations | ✓ | ✓ |
 | Messages | Every conversation, searchable | ✓ | ✓ |
 | Ads & privacy | LinkedIn's inferences about you, ad targeting segments, ad clicks, off-site ads, sign-ins, security checks | targeting only | ✓ |
 
@@ -43,7 +44,7 @@ export.zip ──▶ linkedin_export.wasm ──▶ data.json (in memory) ──
                normalise dates
 ```
 
-- **`wasm/`** is a Rust crate that reads the zip, parses the 18 CSV files the views use and produces one JSON document. The same code compiles two ways:
+- **`wasm/`** is a Rust crate that reads the zip, parses the 20 CSV files the views use and produces one JSON document. The same code compiles two ways:
   - to `wasm32-unknown-unknown` as `app/linkedin_export.wasm` (about 320 KB), used by the page;
   - natively as the `linkedin-build` command-line tool, for producing `data.json` ahead of time.
 - **`app/`** is the page: plain HTML, CSS and JavaScript with hand-drawn SVG charts and no libraries or build step.
@@ -70,6 +71,7 @@ See `buildFromZips` in `app/app.js` for the calling side.
 - The export uses six different date formats; all are converted to ISO-8601 UTC.
 - LinkedIn often logs one search two or three times within a few seconds. Repeats of the same query within 10 seconds count once.
 - Message bodies are HTML; tags are stripped and entities decoded.
+- `Connections.csv` starts with a "Notes:" paragraph before its header row, which is skipped. Connection email addresses are not read.
 
 ## Building
 
