@@ -194,3 +194,7 @@ details.tg summary span:last-child { color: var(--muted); font-size: 12px; }
 @media (prefers-reduced-motion: no-preference) {
   .hb .bar { transition: width .3s ease-out; }
 }
+
+/* Connections: keep the tables readable on phones; the .scroll box scrolls sideways instead. */
+#cn-list, #cn-inv { min-width: 600px; }
+#cn-inv td:nth-child(3) { white-space: nowrap; }

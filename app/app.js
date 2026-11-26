@@ -255,6 +255,7 @@ views.overview = (() => {
       ['Reposts', D.reposts.length, since(D.reposts.map((r) => r[0]))],
       ['Searches', D.searches.length, D.searches.length ? 'last 13 months' : 'not in this export'],
       ['People followed', people, `${nf.format(D.follows_companies.length)} companies`],
+      ['Connections', D.connections.length, since(D.connections.map((c) => c[0]).filter(Boolean))],
       ['Messages', msgs, `${nf.format(D.conversations.length)} conversations`],
       ['Ad clicks', D.ads_clicked.length, since(D.ads_clicked.map((a) => a[0]))],
     ];
@@ -454,6 +455,93 @@ views.following = (() => {
   return {init, draw, empty};
 })();
 
+views.connections = (() => {
+  const LIMIT = 500;
+  // Words that say nothing about the job on their own.
+  const STOP = new Set('a an and at for in of on the to with & - – — | / @ , + i ii iii'.split(' '));
+  let rows;
+  // "Connected On" is a calendar date (stored as midnight UTC), so read it in UTC, not Eastern.
+  const year = (iso) => +iso.slice(0, 4);
+  const words = (title) => [...new Set(title.toLowerCase().split(/[\s,/|&()·:;–—-]+/).filter((w) => w.length > 1 && !STOP.has(w)))];
+  function init() {
+    rows = D.connections.map(([d, name, company, title, url]) => ({d, name, company, title, url,
+      lower: `${name}\n${company}\n${title}`.toLowerCase()}))
+      .sort((a, b) => (b.d || '').localeCompare(a.d || ''));
+    const dated = rows.filter((r) => r.d);
+    const companies = [...countBy(rows.filter((r) => r.company), (r) => r.company)].sort((a, b) => b[1] - a[1]);
+    const parts = rows.length
+      ? [['You have ', [nf.format(rows.length)], ' connections']]
+      : [['This export has no connections list']];
+    if (dated.length) parts.push([', the first made in ', [String(year(dated.at(-1).d))]]);
+    if (companies.length) parts.push(['. They work at ', [nf.format(companies.length)], ' different companies; the most at ',
+      [companies[0][0]], ' (', [nf.format(companies[0][1])], ')']);
+    lede($('#cn-lede'), [...parts.flat(), '.']);
+    $('#cn-q').addEventListener('input', update);
+    invitations();
+    update();
+  }
+  function setQ(v) { const q = $('#cn-q').value.trim().toLowerCase(); $('#cn-q').value = v === q ? '' : v; update(); }
+  function update() {
+    const q = $('#cn-q').value.trim().toLowerCase();
+    const hits = q ? rows.filter((r) => r.lower.includes(q)) : rows;
+    $('#cn-count').textContent = `${nf.format(hits.length)} ${hits.length === 1 ? 'person' : 'people'}${hits.length > LIMIT ? `, newest ${LIMIT} shown` : ''}`;
+    $('#cn-list tbody').replaceChildren(...hits.slice(0, LIMIT).map((r) => {
+      const tr = el('tr');
+      tr.append(el('td', null, r.d ? fDayUTC.format(new Date(r.d)) : ''));
+      const name = el('td');
+      const u = safeUrl(r.url);
+      const target = u ? el('a') : name;
+      if (u) { target.href = u; target.target = '_blank'; target.rel = 'noopener noreferrer'; name.append(target); }
+      highlight(target, r.name || '(no name)', q);
+      const co = el('td'); highlight(co, r.company, q);
+      const ti = el('td'); highlight(ti, r.title, q);
+      tr.append(name, co, ti);
+      return tr;
+    }));
+    const top = (m) => [...m].sort((a, b) => b[1] - a[1]).slice(0, 15);
+    hbars($('#cn-companies'), top(countBy(rows.filter((r) => r.company), (r) => r.company))
+      .map(([k, v]) => ({label: k, value: v, color: color(2), active: k.toLowerCase() === q, onClick: () => setQ(k.toLowerCase())})));
+    const w = new Map();
+    for (const r of rows) for (const x of words(r.title)) w.set(x, (w.get(x) || 0) + 1);
+    hbars($('#cn-titles'), top(w).map(([k, v]) => ({label: k, value: v, color: color(4), active: k === q, onClick: () => setQ(k)})));
+    drawChart(q);
+  }
+  function drawChart(q) {
+    q = q ?? $('#cn-q').value.trim().toLowerCase();
+    const dated = rows.filter((r) => r.d);
+    const note = $('#cn-chart-note');
+    if (!dated.length) { $('#cn-chart').closest('.card').hidden = true; return; }
+    const ys = dated.map((r) => year(r.d));
+    const r = []; for (let y = Math.min(...ys); y <= Math.max(...ys, year(D.built)); y++) r.push(y);
+    const match = countBy(dated.filter((x) => q && x.lower.includes(q)), (x) => year(x.d));
+    const other = countBy(dated.filter((x) => !(q && x.lower.includes(q))), (x) => year(x.d));
+    const series = q
+      ? [{name: 'Matching', color: color(3), values: r.map((y) => match.get(y) || 0)}, {name: 'Other', color: color(6), values: r.map((y) => other.get(y) || 0)}]
+      : [{name: 'Connections', color: color(1), values: r.map((y) => other.get(y) || 0)}];
+    note.textContent = q ? `Connections matching “${q}” are highlighted.` : 'When each connection was made. Filter the list below to see when you met a group.';
+    legend($('#cn-legend'), q ? series : []);
+    bars($('#cn-chart'), {labels: r.map(String), tips: r.map(String), series});
+  }
+  function invitations() {
+    const inv = [...D.invitations].sort((a, b) => (b[0] || '').localeCompare(a[0] || ''));
+    if (!inv.length) { $('#cn-inv-card').hidden = true; return; }
+    const got = inv.filter((x) => x[1] === 'in').length;
+    $('#cn-n-inv').textContent = `${nf.format(inv.length)} in export`;
+    $('#cn-inv-note').textContent = `${nf.format(got)} received and ${nf.format(inv.length - got)} sent.`;
+    $('#cn-inv tbody').replaceChildren(...inv.map(([d, dir, who, msg, url]) => {
+      const tr = el('tr');
+      tr.append(el('td', null, d ? fDT.format(new Date(d)) : ''), el('td', null, dir === 'in' ? 'Received' : 'Sent'));
+      const td = el('td');
+      const u = safeUrl(url);
+      if (u) { const a = el('a', null, who || '(unknown)'); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; td.append(a); } else td.textContent = who;
+      tr.append(td, el('td', null, msg));
+      return tr;
+    }));
+  }
+  const empty = () => !D.connections.length && !D.invitations.length && 'No connections or invitations in this export.';
+  return {init, draw: () => drawChart(), empty};
+})();
+
 views.messages = (() => {
   const LIMIT = 150;
   let shown = LIMIT, current = null, me;
@@ -577,6 +665,9 @@ addEventListener('resize', () => {
 
 function start(data) {
   D = data;
+  // A data.json built before connections were parsed has no such keys.
+  D.connections ??= [];
+  D.invitations ??= [];
   $('#loading').remove();
   $('#picker').hidden = true;
   $('#open-other').hidden = false;
